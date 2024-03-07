@@ -1,0 +1,431 @@
+{
+    "definition": {
+        "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+        "actions": {
+            "Filter_array": {
+                "inputs": {
+                    "from": "@body('Parse_JSON')",
+                    "where": "@equals(item()['kind'],'Host')"
+                },
+                "runAfter": {
+                    "Parse_JSON": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Query"
+            },
+            "Find_Device_Object_ID": {
+                "inputs": "@first(body('Filter_array'))['properties']?['hostName']",
+                "runAfter": {
+                    "Filter_array": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Compose"
+            },
+            "Flow_failed": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "Flow failed",
+                            "type": "boolean"
+                        }
+                    ]
+                },
+                "runAfter": {},
+                "type": "InitializeVariable"
+            },
+            "For_each": {
+                "actions": {
+                    "Compose": {
+                        "inputs": "@outputs('HTTP_POST_Block_Device')",
+                        "runAfter": {
+                            "HTTP_POST_Block_Device": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "Compose"
+                    },
+                    "HTTP_POST_Block_Device": {
+                        "inputs": {
+                            "authentication": {
+                                "audience": "https://graph.microsoft.com",
+                                "authority": "",
+                                "clientId": "77f5c819-71c0-40fc-a864-f90e6830a141",
+                                "secret": "@{body('Get_secret')?['value']}",
+                                "tenant": "@{items('For_each')?['TenantID']}",
+                                "type": "ActiveDirectoryOAuth"
+                            },
+                            "body": {
+                                "@@odata.id": "https://graph.microsoft.com/v1.0/directoryObjects/@{variables('Device ObjectID')}"
+                            },
+                            "headers": {
+                                "Content-Type": "application/json"
+                            },
+                            "method": "POST",
+                            "uri": "https://graph.microsoft.com/beta/groups/@{items('For_each')?['DeviceGroupID']}/members/$ref"
+                        },
+                        "type": "Http"
+                    },
+                    "Set_variable_flow_failed": {
+                        "actions": {
+                            "Set_variable": {
+                                "inputs": {
+                                    "name": "Flow failed",
+                                    "value": true
+                                },
+                                "type": "SetVariable"
+                            }
+                        },
+                        "else": {
+                            "actions": {}
+                        },
+                        "expression": {
+                            "and": [
+                                {
+                                    "not": {
+                                        "equals": [
+                                            "@outputs('HTTP_POST_Block_Device')?['statusCode']",
+                                            204
+                                        ]
+                                    }
+                                }
+                            ]
+                        },
+                        "runAfter": {
+                            "Compose": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "If"
+                    }
+                },
+                "foreach": "@body('Get_items')?['value']",
+                "runAfter": {
+                    "For_each_1": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Foreach"
+            },
+            "For_each_1": {
+                "actions": {
+                    "For_each_3": {
+                        "actions": {
+                            "Set_variable_Device_ObjectID": {
+                                "inputs": {
+                                    "name": "Device ObjectID",
+                                    "value": "@items('For_each_3')?['id']"
+                                },
+                                "type": "SetVariable"
+                            }
+                        },
+                        "foreach": "@outputs('Parse_JSON_1')?['body']?['value']",
+                        "runAfter": {
+                            "Parse_JSON_1": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "Foreach"
+                    },
+                    "HTTP": {
+                        "inputs": {
+                            "authentication": {
+                                "audience": "https://graph.microsoft.com",
+                                "clientId": "77f5c819-71c0-40fc-a864-f90e6830a141",
+                                "secret": "@{body('Get_secret')?['value']}",
+                                "tenant": "@{items('For_each_1')?['TenantID']}",
+                                "type": "ActiveDirectoryOAuth"
+                            },
+                            "headers": {
+                                "Content-Type": "application/json"
+                            },
+                            "method": "GET",
+                            "uri": "https://graph.microsoft.com/v1.0/devices?$filter=displayName+eq+'@{variables('HostName')}'&$select=id,deviceId,displayName"
+                        },
+                        "type": "Http"
+                    },
+                    "Parse_JSON_1": {
+                        "inputs": {
+                            "content": "@body('HTTP')",
+                            "schema": {
+                                "properties": {
+                                    "@@odata.context": {
+                                        "type": "string"
+                                    },
+                                    "value": {
+                                        "items": {
+                                            "properties": {
+                                                "deviceId": {
+                                                    "type": "string"
+                                                },
+                                                "displayName": {
+                                                    "type": "string"
+                                                },
+                                                "id": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "id",
+                                                "deviceId",
+                                                "displayName"
+                                            ],
+                                            "type": "object"
+                                        },
+                                        "type": "array"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        },
+                        "runAfter": {
+                            "HTTP": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "ParseJson"
+                    }
+                },
+                "foreach": "@body('Get_items')?['value']",
+                "runAfter": {
+                    "Get_items": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Foreach"
+            },
+            "For_each_2": {
+                "actions": {
+                    "Set_Hostname": {
+                        "inputs": {
+                            "name": "HostName",
+                            "value": "@items('For_each_2')?['properties']?['hostName']"
+                        },
+                        "type": "SetVariable"
+                    }
+                },
+                "foreach": "@outputs('Filter_array')['body']",
+                "runAfter": {
+                    "Find_Device_Object_ID": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Foreach"
+            },
+            "Get_items": {
+                "inputs": {
+                    "host": {
+                        "connection": {
+                            "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                        }
+                    },
+                    "method": "get",
+                    "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://system4u.sharepoint.com/sites/MDR'))}/tables/@{encodeURIComponent(encodeURIComponent('caac55af-44a0-473c-a10c-9528741e280b'))}/items",
+                    "queries": {
+                        "$filter": "WorkspaceID eq '@{triggerBody()?['workspaceId']}'"
+                    }
+                },
+                "runAfter": {
+                    "Get_secret": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "ApiConnection"
+            },
+            "Get_secret": {
+                "inputs": {
+                    "host": {
+                        "connection": {
+                            "name": "@parameters('$connections')['keyvault-2']['connectionId']"
+                        }
+                    },
+                    "method": "get",
+                    "path": "/secrets/@{encodeURIComponent('mdr-suite-app-secret')}/value"
+                },
+                "runAfter": {
+                    "For_each_2": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "ApiConnection"
+            },
+            "Initialize_HostName": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "HostName",
+                            "type": "string"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "Flow_failed": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            },
+            "Initialize_variable_Device_ObjectID": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "Device ObjectID",
+                            "type": "string"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "Initialize_HostName": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            },
+            "Parse_JSON": {
+                "inputs": {
+                    "content": "@triggerBody()?['object']?['properties']?['relatedEntities']",
+                    "schema": {
+                        "items": {
+                            "properties": {
+                                "id": {
+                                    "type": "string"
+                                },
+                                "kind": {
+                                    "type": "string"
+                                },
+                                "name": {
+                                    "type": "string"
+                                },
+                                "properties": {
+                                    "properties": {
+                                        "azureID": {
+                                            "type": "string"
+                                        },
+                                        "friendlyName": {
+                                            "type": "string"
+                                        },
+                                        "hostName": {
+                                            "type": "string"
+                                        },
+                                        "osFamily": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                },
+                                "type": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "id",
+                                "name",
+                                "type",
+                                "kind",
+                                "properties"
+                            ],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    }
+                },
+                "runAfter": {
+                    "Initialize_variable_Device_ObjectID": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "ParseJson"
+            },
+            "Status_code_is_not_204": {
+                "actions": {
+                    "Terminate": {
+                        "inputs": {
+                            "runError": {
+                                "code": "Status code is not 204"
+                            },
+                            "runStatus": "Failed"
+                        },
+                        "type": "Terminate"
+                    }
+                },
+                "else": {
+                    "actions": {}
+                },
+                "expression": {
+                    "and": [
+                        {
+                            "equals": [
+                                "@variables('Flow failed')",
+                                true
+                            ]
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "For_each": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "If"
+            }
+        },
+        "contentVersion": "1.0.0.0",
+        "outputs": {},
+        "parameters": {
+            "$connections": {
+                "defaultValue": {},
+                "type": "Object"
+            }
+        },
+        "triggers": {
+            "Microsoft_Sentinel_incident": {
+                "inputs": {
+                    "body": {
+                        "callback_url": "@{listCallbackUrl()}"
+                    },
+                    "host": {
+                        "connection": {
+                            "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                        }
+                    },
+                    "path": "/incident-creation"
+                },
+                "type": "ApiConnectionWebhook"
+            }
+        }
+    },
+    "parameters": {
+        "$connections": {
+            "value": {
+                "azuresentinel": {
+                    "connectionId": "/subscriptions/738d02b8-c83d-4d21-9a99-60243a903b89/resourceGroups/rg-prod-mdr-suite/providers/Microsoft.Web/connections/azuresentinel",
+                    "connectionName": "azuresentinel",
+                    "connectionProperties": {
+                        "authentication": {
+                            "identity": "/subscriptions/738d02b8-c83d-4d21-9a99-60243a903b89/resourceGroups/rg-prod-mdr-suite/providers/Microsoft.ManagedIdentity/userAssignedIdentities/mi-prod-mdr-suite",
+                            "type": "ManagedServiceIdentity"
+                        }
+                    },
+                    "id": "/subscriptions/738d02b8-c83d-4d21-9a99-60243a903b89/providers/Microsoft.Web/locations/northeurope/managedApis/azuresentinel"
+                },
+                "keyvault-2": {
+                    "connectionId": "/subscriptions/738d02b8-c83d-4d21-9a99-60243a903b89/resourceGroups/rg-prod-mdr-suite/providers/Microsoft.Web/connections/keyvault",
+                    "connectionName": "keyvault",
+                    "connectionProperties": {
+                        "authentication": {
+                            "identity": "/subscriptions/738d02b8-c83d-4d21-9a99-60243a903b89/resourceGroups/rg-prod-mdr-suite/providers/Microsoft.ManagedIdentity/userAssignedIdentities/mi-prod-mdr-suite",
+                            "type": "ManagedServiceIdentity"
+                        }
+                    },
+                    "id": "/subscriptions/738d02b8-c83d-4d21-9a99-60243a903b89/providers/Microsoft.Web/locations/northeurope/managedApis/keyvault"
+                },
+                "sharepointonline": {
+                    "connectionId": "/subscriptions/738d02b8-c83d-4d21-9a99-60243a903b89/resourceGroups/rg-prod-mdr-suite/providers/Microsoft.Web/connections/sharepointonline",
+                    "connectionName": "sharepointonline",
+                    "id": "/subscriptions/738d02b8-c83d-4d21-9a99-60243a903b89/providers/Microsoft.Web/locations/northeurope/managedApis/sharepointonline"
+                }
+            }
+        }
+    }
+}

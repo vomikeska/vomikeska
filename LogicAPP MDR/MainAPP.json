@@ -1,0 +1,1129 @@
+{
+    "definition": {
+        "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+        "actions": {
+            "For_each": {
+                "actions": {
+                    "Direct_or_Suite_support_condition": {
+                        "actions": {
+                            "Compose_tags": {
+                                "inputs": "@triggerBody()?['object']?['properties']?['labels']",
+                                "type": "Compose"
+                            },
+                            "Direct_Support_-_New_or_Update_Incident": {
+                                "actions": {
+                                    "If_alerts_are_present": {
+                                        "actions": {
+                                            "For_each_3": {
+                                                "actions": {
+                                                    "AlertDisplayName_is_not_empty": {
+                                                        "actions": {
+                                                            "Create_Vivantio_AlternativeTitle-Description": {
+                                                                "inputs": {
+                                                                    "authentication": {
+                                                                        "password": "@{body('Get_secret_VivantioPassword')?['value']}",
+                                                                        "type": "Basic",
+                                                                        "username": "@{body('Get_secret_VivantioUser')?['value']}"
+                                                                    },
+                                                                    "body": {
+                                                                        "CallerEmail": "@{items('For_each')?['E_x002d_mailcontact']}",
+                                                                        "ClientId": "@{items('For_each')?['VivantioID']}",
+                                                                        "CustomForms": {
+                                                                            "Flags": [
+                                                                                {
+                                                                                    "MDR ID": "@{triggerBody()?['object']?['id']}",
+                                                                                    "Sentinel link": "@{triggerBody()?['object']?['properties']?['incidentUrl']}",
+                                                                                    "Wiki link": "@{variables('Wiki URL')}"
+                                                                                }
+                                                                            ]
+                                                                        },
+                                                                        "DescriptionHtml": "@{replace(items('For_each_3')?['properties']?['description'],'\\n','')}<br>MITRE ATT&CK: @{variables('Tactics')} | @{variables('Techniques')}",
+                                                                        "PriorityID": "@{variables('Severity')}",
+                                                                        "RecordTypeId": "27",
+                                                                        "Title": "@{items('For_each_3')?['properties']?['alertDisplayName']}"
+                                                                    },
+                                                                    "headers": {
+                                                                        "content-Type": "application/json"
+                                                                    },
+                                                                    "method": "POST",
+                                                                    "uri": "@{body('Get_secret_VivantioApiURL')?['value']}/Ticket/insert"
+                                                                },
+                                                                "type": "Http"
+                                                            },
+                                                            "Parse_JSON_AlternativeTitle-Description": {
+                                                                "inputs": {
+                                                                    "content": "@body('Create_Vivantio_AlternativeTitle-Description')",
+                                                                    "schema": {
+                                                                        "properties": {
+                                                                            "InsertedItemId": {
+                                                                                "type": "integer"
+                                                                            }
+                                                                        },
+                                                                        "type": "object"
+                                                                    }
+                                                                },
+                                                                "runAfter": {
+                                                                    "Create_Vivantio_AlternativeTitle-Description": [
+                                                                        "Succeeded"
+                                                                    ]
+                                                                },
+                                                                "type": "ParseJson"
+                                                            },
+                                                            "Update_Sentinel_incident_AlternativeTitle-Description": {
+                                                                "inputs": {
+                                                                    "body": {
+                                                                        "incidentArmId": "@triggerBody()?['object']?['id']",
+                                                                        "status": "New",
+                                                                        "tagsToAdd": {
+                                                                            "TagsToAdd": [
+                                                                                {
+                                                                                    "Tag": "@{body('Parse_JSON_AlternativeTitle-Description')?['InsertedItemId']}"
+                                                                                },
+                                                                                {
+                                                                                    "Tag": "ReportedByMDR"
+                                                                                }
+                                                                            ]
+                                                                        }
+                                                                    },
+                                                                    "host": {
+                                                                        "connection": {
+                                                                            "name": "@parameters('$connections')['azuresentinel-2']['connectionId']"
+                                                                        }
+                                                                    },
+                                                                    "method": "put",
+                                                                    "path": "/Incidents"
+                                                                },
+                                                                "runAfter": {
+                                                                    "Parse_JSON_AlternativeTitle-Description": [
+                                                                        "Succeeded"
+                                                                    ]
+                                                                },
+                                                                "type": "ApiConnection"
+                                                            }
+                                                        },
+                                                        "else": {
+                                                            "actions": {
+                                                                "Create_Vivantio_ticket": {
+                                                                    "inputs": {
+                                                                        "authentication": {
+                                                                            "password": "@{body('Get_secret_VivantioPassword')?['value']}",
+                                                                            "type": "Basic",
+                                                                            "username": "@{body('Get_secret_VivantioUser')?['value']}"
+                                                                        },
+                                                                        "body": {
+                                                                            "CallerEmail": "@{items('For_each')?['E_x002d_mailcontact']}",
+                                                                            "ClientId": "@{items('For_each')?['VivantioID']}",
+                                                                            "CustomForms": {
+                                                                                "Flags": [
+                                                                                    {
+                                                                                        "MDR ID": "@{triggerBody()?['object']?['id']}",
+                                                                                        "Sentinel link": "@{triggerBody()?['object']?['properties']?['incidentUrl']}",
+                                                                                        "Wiki link": "@{variables('Wiki URL')}"
+                                                                                    }
+                                                                                ]
+                                                                            },
+                                                                            "DescriptionHtml": "@{replace(triggerBody()?['object']?['properties']?['description'],'\\n','')}<br>MITRE ATT&CK: @{variables('Tactics')} | @{variables('Techniques')}",
+                                                                            "PriorityID": "@{variables('Severity')}",
+                                                                            "RecordTypeId": "27",
+                                                                            "Title": "@{triggerBody()?['object']?['properties']?['title']}"
+                                                                        },
+                                                                        "headers": {
+                                                                            "content-Type": "application/json"
+                                                                        },
+                                                                        "method": "POST",
+                                                                        "uri": "@{body('Get_secret_VivantioApiURL')?['value']}/Ticket/insert"
+                                                                    },
+                                                                    "type": "Http"
+                                                                },
+                                                                "Parse_JSON": {
+                                                                    "inputs": {
+                                                                        "content": "@body('Create_Vivantio_ticket')",
+                                                                        "schema": {
+                                                                            "properties": {
+                                                                                "InsertedItemId": {
+                                                                                    "type": "integer"
+                                                                                }
+                                                                            },
+                                                                            "type": "object"
+                                                                        }
+                                                                    },
+                                                                    "runAfter": {
+                                                                        "Create_Vivantio_ticket": [
+                                                                            "Succeeded"
+                                                                        ]
+                                                                    },
+                                                                    "type": "ParseJson"
+                                                                },
+                                                                "Update_Sentinel_incident": {
+                                                                    "inputs": {
+                                                                        "body": {
+                                                                            "incidentArmId": "@triggerBody()?['object']?['id']",
+                                                                            "status": "New",
+                                                                            "tagsToAdd": {
+                                                                                "TagsToAdd": [
+                                                                                    {
+                                                                                        "Tag": "@{body('Parse_JSON')?['InsertedItemId']}"
+                                                                                    },
+                                                                                    {
+                                                                                        "Tag": "ReportedByMDR"
+                                                                                    }
+                                                                                ]
+                                                                            }
+                                                                        },
+                                                                        "host": {
+                                                                            "connection": {
+                                                                                "name": "@parameters('$connections')['azuresentinel-2']['connectionId']"
+                                                                            }
+                                                                        },
+                                                                        "method": "put",
+                                                                        "path": "/Incidents"
+                                                                    },
+                                                                    "runAfter": {
+                                                                        "Parse_JSON": [
+                                                                            "Succeeded"
+                                                                        ]
+                                                                    },
+                                                                    "type": "ApiConnection"
+                                                                }
+                                                            }
+                                                        },
+                                                        "expression": {
+                                                            "and": [
+                                                                {
+                                                                    "not": {
+                                                                        "equals": [
+                                                                            "@items('For_each_3')?['properties']?['alertDisplayName']",
+                                                                            "@null"
+                                                                        ]
+                                                                    }
+                                                                }
+                                                            ]
+                                                        },
+                                                        "type": "If"
+                                                    }
+                                                },
+                                                "foreach": "@triggerBody()?['object']?['properties']?['Alerts']",
+                                                "type": "Foreach"
+                                            }
+                                        },
+                                        "else": {
+                                            "actions": {
+                                                "Create_Vivantio_ticket_copy": {
+                                                    "inputs": {
+                                                        "authentication": {
+                                                            "password": "@{body('Get_secret_VivantioPassword')?['value']}",
+                                                            "type": "Basic",
+                                                            "username": "@{body('Get_secret_VivantioUser')?['value']}"
+                                                        },
+                                                        "body": {
+                                                            "CallerEmail": "@{items('For_each')?['E_x002d_mailcontact']}",
+                                                            "ClientId": "@{items('For_each')?['VivantioID']}",
+                                                            "CustomForms": {
+                                                                "Flags": [
+                                                                    {
+                                                                        "MDR ID": "@{triggerBody()?['object']?['id']}",
+                                                                        "Sentinel link": "@{triggerBody()?['object']?['properties']?['incidentUrl']}",
+                                                                        "Wiki link": "@{variables('Wiki URL')}"
+                                                                    }
+                                                                ]
+                                                            },
+                                                            "DescriptionHtml": "@{replace(triggerBody()?['object']?['properties']?['description'],'\\n','')}<br>MITRE ATT&CK: @{variables('Tactics')} | @{variables('Techniques')}",
+                                                            "PriorityID": "@{variables('Severity')}",
+                                                            "RecordTypeId": "27",
+                                                            "Title": "@{triggerBody()?['object']?['properties']?['title']}"
+                                                        },
+                                                        "headers": {
+                                                            "content-Type": "application/json"
+                                                        },
+                                                        "method": "POST",
+                                                        "uri": "@{body('Get_secret_VivantioApiURL')?['value']}/Ticket/insert"
+                                                    },
+                                                    "type": "Http"
+                                                },
+                                                "Parse_JSON_copy": {
+                                                    "inputs": {
+                                                        "content": "@body('Create_Vivantio_ticket_copy')",
+                                                        "schema": {
+                                                            "properties": {
+                                                                "InsertedItemId": {
+                                                                    "type": "integer"
+                                                                }
+                                                            },
+                                                            "type": "object"
+                                                        }
+                                                    },
+                                                    "runAfter": {
+                                                        "Create_Vivantio_ticket_copy": [
+                                                            "Succeeded"
+                                                        ]
+                                                    },
+                                                    "type": "ParseJson"
+                                                },
+                                                "Update_Sentinel_incident_copy": {
+                                                    "inputs": {
+                                                        "body": {
+                                                            "incidentArmId": "@triggerBody()?['object']?['id']",
+                                                            "status": "New",
+                                                            "tagsToAdd": {
+                                                                "TagsToAdd": [
+                                                                    {
+                                                                        "Tag": "@{body('Parse_JSON_copy')?['InsertedItemId']}"
+                                                                    },
+                                                                    {
+                                                                        "Tag": "ReportedByMDR"
+                                                                    }
+                                                                ]
+                                                            }
+                                                        },
+                                                        "host": {
+                                                            "connection": {
+                                                                "name": "@parameters('$connections')['azuresentinel-2']['connectionId']"
+                                                            }
+                                                        },
+                                                        "method": "put",
+                                                        "path": "/Incidents"
+                                                    },
+                                                    "runAfter": {
+                                                        "Parse_JSON_copy": [
+                                                            "Succeeded"
+                                                        ]
+                                                    },
+                                                    "type": "ApiConnection"
+                                                }
+                                            }
+                                        },
+                                        "expression": {
+                                            "and": [
+                                                {
+                                                    "greater": [
+                                                        "@length(triggerBody()?['object']?['properties']?['Alerts'])",
+                                                        0
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        "type": "If"
+                                    }
+                                },
+                                "else": {
+                                    "actions": {
+                                        "Update_Incident": {
+                                            "actions": {
+                                                "Compose": {
+                                                    "inputs": "@first(body('Parse_Tag'))",
+                                                    "runAfter": {
+                                                        "Parse_Tag": [
+                                                            "Succeeded"
+                                                        ]
+                                                    },
+                                                    "type": "Compose"
+                                                },
+                                                "For_each_1": {
+                                                    "actions": {
+                                                        "For_each_4": {
+                                                            "actions": {
+                                                                "HTTP": {
+                                                                    "inputs": {
+                                                                        "authentication": {
+                                                                            "password": "@{body('Get_secret_VivantioPassword')?['value']}",
+                                                                            "type": "Basic",
+                                                                            "username": "@{body('Get_secret_VivantioUser')?['value']}"
+                                                                        },
+                                                                        "body": {
+                                                                            "AffectedTickets": [
+                                                                                "VivantioIDitem"
+                                                                            ],
+                                                                            "Notes": "@{item()?['properties']?['message']}",
+                                                                            "UserId": "176",
+                                                                            "private": "true"
+                                                                        },
+                                                                        "method": "POST",
+                                                                        "uri": "https://system4u.api.vivantio.com/api/Ticket/AddNote"
+                                                                    },
+                                                                    "type": "Http"
+                                                                }
+                                                            },
+                                                            "foreach": "@triggerBody()?['object']?['properties']?['Alerts']",
+                                                            "type": "Foreach"
+                                                        }
+                                                    },
+                                                    "foreach": "@outputs('Parse_Comments')['body']",
+                                                    "runAfter": {
+                                                        "Compose": [
+                                                            "Succeeded"
+                                                        ]
+                                                    },
+                                                    "type": "Foreach"
+                                                },
+                                                "Parse_Comments": {
+                                                    "inputs": {
+                                                        "content": "@triggerBody()?['incidentUpdates']?['comments']",
+                                                        "schema": {
+                                                            "items": {
+                                                                "properties": {
+                                                                    "etag": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "id": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "name": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "properties": {
+                                                                        "properties": {
+                                                                            "author": {
+                                                                                "properties": {
+                                                                                    "email": {
+                                                                                        "type": "string"
+                                                                                    },
+                                                                                    "name": {
+                                                                                        "type": "string"
+                                                                                    },
+                                                                                    "objectId": {
+                                                                                        "type": "string"
+                                                                                    },
+                                                                                    "userPrincipalName": {
+                                                                                        "type": "string"
+                                                                                    }
+                                                                                },
+                                                                                "type": "object"
+                                                                            },
+                                                                            "createdTimeUtc": {
+                                                                                "type": "string"
+                                                                            },
+                                                                            "lastModifiedTimeUtc": {
+                                                                                "type": "string"
+                                                                            },
+                                                                            "message": {
+                                                                                "type": "string"
+                                                                            }
+                                                                        },
+                                                                        "type": "object"
+                                                                    },
+                                                                    "type": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "id",
+                                                                    "name",
+                                                                    "etag",
+                                                                    "type",
+                                                                    "properties"
+                                                                ],
+                                                                "type": "object"
+                                                            },
+                                                            "type": "array"
+                                                        }
+                                                    },
+                                                    "type": "ParseJson"
+                                                },
+                                                "Parse_Tag": {
+                                                    "inputs": {
+                                                        "content": "@triggerBody()?['object']?['properties']?['labels']",
+                                                        "schema": {
+                                                            "items": {
+                                                                "properties": {
+                                                                    "labelName": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "labelType": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "labelName",
+                                                                    "labelType"
+                                                                ],
+                                                                "type": "object"
+                                                            },
+                                                            "type": "array"
+                                                        }
+                                                    },
+                                                    "runAfter": {
+                                                        "Parse_Comments": [
+                                                            "Succeeded"
+                                                        ]
+                                                    },
+                                                    "type": "ParseJson"
+                                                }
+                                            },
+                                            "else": {
+                                                "actions": {}
+                                            },
+                                            "expression": {
+                                                "and": [
+                                                    {
+                                                        "startsWith": [
+                                                            "@triggerBody()?['object']?['properties']?['status']",
+                                                            "Nachystáno na update ze Sentinelu"
+                                                        ]
+                                                    }
+                                                ]
+                                            },
+                                            "type": "If"
+                                        }
+                                    }
+                                },
+                                "expression": {
+                                    "and": [
+                                        {
+                                            "equals": [
+                                                "@triggerBody()?['object']?['properties']?['status']",
+                                                "New"
+                                            ]
+                                        },
+                                        {
+                                            "not": {
+                                                "contains": [
+                                                    "@string(triggerBody()?['object']?['properties']?['labels'])",
+                                                    "ReportedByMDR"
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                },
+                                "runAfter": {
+                                    "Compose_tags": [
+                                        "Succeeded"
+                                    ]
+                                },
+                                "type": "If"
+                            }
+                        },
+                        "else": {
+                            "actions": {
+                                "Suite_Support_-_New_Incident": {
+                                    "actions": {
+                                        "If_alerts_are_present_1": {
+                                            "actions": {
+                                                "For_each_2": {
+                                                    "actions": {
+                                                        "Condition": {
+                                                            "actions": {
+                                                                "Add_tag_ReportedbyMDR_AlternativeTitle-Description": {
+                                                                    "inputs": {
+                                                                        "body": {
+                                                                            "incidentArmId": "@triggerBody()?['object']?['id']",
+                                                                            "status": "Active",
+                                                                            "tagsToAdd": {
+                                                                                "TagsToAdd": [
+                                                                                    {
+                                                                                        "Tag": "ReportedByMDR"
+                                                                                    }
+                                                                                ]
+                                                                            }
+                                                                        },
+                                                                        "host": {
+                                                                            "connection": {
+                                                                                "name": "@parameters('$connections')['azuresentinel-2']['connectionId']"
+                                                                            }
+                                                                        },
+                                                                        "method": "put",
+                                                                        "path": "/Incidents"
+                                                                    },
+                                                                    "runAfter": {
+                                                                        "Send_an_email_AlternativeTitle-Description": [
+                                                                            "Succeeded"
+                                                                        ]
+                                                                    },
+                                                                    "type": "ApiConnection"
+                                                                },
+                                                                "Send_an_email_AlternativeTitle-Description": {
+                                                                    "inputs": {
+                                                                        "body": {
+                                                                            "Body": "<p>Dear @{items('For_each')?['Title']} team,</p>\n<p>please be informed about a new security incident identified within your environment. Kindly pay attention to the details below:</p>\n<p><strong>Title: </strong>@{items('For_each_2')?['properties']?['alertDisplayName']}</p>\n<p><strong>Severity:</strong> @{triggerBody()?['object']?['properties']?['severity']}</p>\n<p>@{items('For_each_2')?['properties']?['description']}<br>\n<br>\n<strong>MITRE ATT&amp;CK: </strong>@{variables('Tactics')} | @{variables('Techniques')}<strong><br>\n</strong><br>\n<strong>Find more details in the </strong><a href=\"\">Microsoft Sentinel</a>.</p>\n<p>Best regards,<br>\n<br>\nSystem4u MDR | www.system4u.com</p>",
+                                                                            "From": "security-incident-noreply@system4u.com\n",
+                                                                            "Importance": "Normal",
+                                                                            "Subject": "[System4u MDR] @{triggerBody()?['object']?['properties']?['severity']} - @{triggerBody()?['object']?['properties']?['status']} -  @{triggerBody()?['object']?['properties']?['title']}",
+                                                                            "To": "@items('For_each')?['E_x002d_mailcontact']"
+                                                                        },
+                                                                        "host": {
+                                                                            "connection": {
+                                                                                "name": "@parameters('$connections')['office365']['connectionId']"
+                                                                            }
+                                                                        },
+                                                                        "method": "post",
+                                                                        "path": "/v2/Mail"
+                                                                    },
+                                                                    "type": "ApiConnection"
+                                                                }
+                                                            },
+                                                            "else": {
+                                                                "actions": {
+                                                                    "Add_tag_ReportedbyMDR": {
+                                                                        "inputs": {
+                                                                            "body": {
+                                                                                "incidentArmId": "@triggerBody()?['object']?['id']",
+                                                                                "status": "Active",
+                                                                                "tagsToAdd": {
+                                                                                    "TagsToAdd": [
+                                                                                        {
+                                                                                            "Tag": "ReportedByMDR"
+                                                                                        }
+                                                                                    ]
+                                                                                }
+                                                                            },
+                                                                            "host": {
+                                                                                "connection": {
+                                                                                    "name": "@parameters('$connections')['azuresentinel-2']['connectionId']"
+                                                                                }
+                                                                            },
+                                                                            "method": "put",
+                                                                            "path": "/Incidents"
+                                                                        },
+                                                                        "runAfter": {
+                                                                            "Send_an_email": [
+                                                                                "Succeeded"
+                                                                            ]
+                                                                        },
+                                                                        "type": "ApiConnection"
+                                                                    },
+                                                                    "Send_an_email": {
+                                                                        "inputs": {
+                                                                            "body": {
+                                                                                "Body": "<p>Dear @{items('For_each')?['Title']} team,</p>\n<p>please be informed about a new security incident identified within your environment. Kindly pay attention to the details below:</p>\n<p><strong>Title: </strong>@{triggerBody()?['object']?['properties']?['title']}</p>\n<p><strong>Severity:</strong> @{triggerBody()?['object']?['properties']?['severity']}</p>\n<p>@{triggerBody()?['object']?['properties']?['description']}<br>\n<br>\n<strong>MITRE ATT&amp;CK: &nbsp;</strong>@{variables('Tactics')} | @{variables('Techniques')}</p>\n<p><strong>Find more details in the </strong>@{triggerBody()?['object']?['properties']?['incidentUrl']}<a href=\"&lt;object custom=\">\"&gt;Microsoft Sentinel</a>.</p>\n<p>Best regards,</p>\n<p>System4u MDR | www.system4u.com</p>",
+                                                                                "From": "security-incident-noreply@system4u.com\n",
+                                                                                "Importance": "Normal",
+                                                                                "Subject": "[System4u MDR] @{triggerBody()?['object']?['properties']?['severity']} - @{triggerBody()?['object']?['properties']?['status']} -  @{triggerBody()?['object']?['properties']?['title']}",
+                                                                                "To": "@items('For_each')?['E_x002d_mailcontact']"
+                                                                            },
+                                                                            "host": {
+                                                                                "connection": {
+                                                                                    "name": "@parameters('$connections')['office365']['connectionId']"
+                                                                                }
+                                                                            },
+                                                                            "method": "post",
+                                                                            "path": "/v2/Mail"
+                                                                        },
+                                                                        "type": "ApiConnection"
+                                                                    }
+                                                                }
+                                                            },
+                                                            "expression": {
+                                                                "and": [
+                                                                    {
+                                                                        "not": {
+                                                                            "equals": [
+                                                                                "@items('For_each_2')?['properties']?['alertDisplayName']",
+                                                                                "@null"
+                                                                            ]
+                                                                        }
+                                                                    }
+                                                                ]
+                                                            },
+                                                            "type": "If"
+                                                        }
+                                                    },
+                                                    "foreach": "@triggerBody()?['object']?['properties']?['Alerts']",
+                                                    "type": "Foreach"
+                                                }
+                                            },
+                                            "else": {
+                                                "actions": {
+                                                    "Add_tag_ReportedbyMDR_1": {
+                                                        "inputs": {
+                                                            "body": {
+                                                                "incidentArmId": "@triggerBody()?['object']?['id']",
+                                                                "status": "Active",
+                                                                "tagsToAdd": {
+                                                                    "TagsToAdd": [
+                                                                        {
+                                                                            "Tag": "ReportedByMDR"
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            },
+                                                            "host": {
+                                                                "connection": {
+                                                                    "name": "@parameters('$connections')['azuresentinel-2']['connectionId']"
+                                                                }
+                                                            },
+                                                            "method": "put",
+                                                            "path": "/Incidents"
+                                                        },
+                                                        "runAfter": {
+                                                            "Send_an_email_1": [
+                                                                "Succeeded"
+                                                            ]
+                                                        },
+                                                        "type": "ApiConnection"
+                                                    },
+                                                    "Send_an_email_1": {
+                                                        "inputs": {
+                                                            "body": {
+                                                                "Body": "<p>Dear @{items('For_each')?['Title']} team,</p>\n<p>please be informed about a new security incident identified within your environment. Kindly pay attention to the details below:</p>\n<p><strong>Title: </strong>@{triggerBody()?['object']?['properties']?['title']}</p>\n<p><strong>Severity:</strong> @{triggerBody()?['object']?['properties']?['severity']}</p>\n<p>@{triggerBody()?['object']?['properties']?['description']}<br>\n<br>\n<strong>MITRE ATT&amp;CK: &nbsp;</strong>@{variables('Tactics')} | @{variables('Techniques')}</p>\n<p><strong>Find more details in the </strong>@{triggerBody()?['object']?['properties']?['incidentUrl']}<a href=\"&lt;object custom=\">\"&gt;Microsoft Sentinel</a>.</p>\n<p>Best regards,</p>\n<p>System4u MDR | www.system4u.com</p>",
+                                                                "From": "security-incident-noreply@system4u.com\n",
+                                                                "Importance": "Normal",
+                                                                "Subject": "[System4u MDR] @{triggerBody()?['object']?['properties']?['severity']} - @{triggerBody()?['object']?['properties']?['status']} -  @{triggerBody()?['object']?['properties']?['title']}",
+                                                                "To": "@items('For_each')?['E_x002d_mailcontact']"
+                                                            },
+                                                            "host": {
+                                                                "connection": {
+                                                                    "name": "@parameters('$connections')['office365']['connectionId']"
+                                                                }
+                                                            },
+                                                            "method": "post",
+                                                            "path": "/v2/Mail"
+                                                        },
+                                                        "type": "ApiConnection"
+                                                    }
+                                                }
+                                            },
+                                            "expression": {
+                                                "and": [
+                                                    {
+                                                        "greater": [
+                                                            "@length(triggerBody()?['object']?['properties']?['Alerts'])",
+                                                            0
+                                                        ]
+                                                    }
+                                                ]
+                                            },
+                                            "type": "If"
+                                        }
+                                    },
+                                    "else": {
+                                        "actions": {}
+                                    },
+                                    "expression": {
+                                        "and": [
+                                            {
+                                                "equals": [
+                                                    "@triggerBody()?['object']?['properties']?['status']",
+                                                    "New"
+                                                ]
+                                            },
+                                            {
+                                                "not": {
+                                                    "contains": [
+                                                        "@string(triggerBody()?['object']?['properties']?['labels'])",
+                                                        "ReportedByMDR"
+                                                    ]
+                                                }
+                                            }
+                                        ]
+                                    },
+                                    "type": "If"
+                                }
+                            }
+                        },
+                        "expression": {
+                            "and": [
+                                {
+                                    "contains": [
+                                        "@items('For_each')?['Support']?['Value']",
+                                        "Direct Support"
+                                    ]
+                                }
+                            ]
+                        },
+                        "type": "If"
+                    }
+                },
+                "foreach": "@body('Get_items')?['value']",
+                "runAfter": {
+                    "Set_Severity_for_24-7_or_8-5": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Foreach"
+            },
+            "For_each_5": {
+                "actions": {
+                    "Related_ID_analytic_rule": {
+                        "inputs": "@last(split(items('For_each_5'), '/'))",
+                        "type": "Compose"
+                    },
+                    "Set_variable": {
+                        "inputs": {
+                            "name": "Wiki URL",
+                            "value": "https://wiki.system4u.cz/books/system4u-mdr-suite-operations/page/@{outputs('Related_ID_analytic_rule')}"
+                        },
+                        "runAfter": {
+                            "Related_ID_analytic_rule": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "SetVariable"
+                    }
+                },
+                "foreach": "@triggerBody()?['object']?['properties']?['relatedAnalyticRuleIds']",
+                "runAfter": {
+                    "Initialize_variable_Wiki_URL": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Foreach"
+            },
+            "Get_items": {
+                "inputs": {
+                    "host": {
+                        "connection": {
+                            "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                        }
+                    },
+                    "method": "get",
+                    "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://system4u.sharepoint.com/sites/MDR'))}/tables/@{encodeURIComponent(encodeURIComponent('caac55af-44a0-473c-a10c-9528741e280b'))}/items",
+                    "queries": {
+                        "$filter": "WorkspaceID eq '@{triggerBody()?['workspaceId']}'"
+                    }
+                },
+                "runAfter": {
+                    "Get_secret_VivantioPassword": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "ApiConnection"
+            },
+            "Get_secret_VivantioApiURL": {
+                "inputs": {
+                    "host": {
+                        "connection": {
+                            "name": "@parameters('$connections')['keyvault']['connectionId']"
+                        }
+                    },
+                    "method": "get",
+                    "path": "/secrets/@{encodeURIComponent('VivantioApiURL')}/value"
+                },
+                "runAfter": {
+                    "For_each_5": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "ApiConnection"
+            },
+            "Get_secret_VivantioPassword": {
+                "inputs": {
+                    "host": {
+                        "connection": {
+                            "name": "@parameters('$connections')['keyvault']['connectionId']"
+                        }
+                    },
+                    "method": "get",
+                    "path": "/secrets/@{encodeURIComponent('VivantioPasswordPROD')}/value"
+                },
+                "runAfter": {
+                    "Get_secret_VivantioUser": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "ApiConnection"
+            },
+            "Get_secret_VivantioUser": {
+                "inputs": {
+                    "host": {
+                        "connection": {
+                            "name": "@parameters('$connections')['keyvault']['connectionId']"
+                        }
+                    },
+                    "method": "get",
+                    "path": "/secrets/@{encodeURIComponent('VivantioUserPROD')}/value"
+                },
+                "runAfter": {
+                    "Get_secret_VivantioApiURL": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "ApiConnection"
+            },
+            "Initialize_severity": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "Severity",
+                            "type": "string",
+                            "value": "@triggerBody()?['object']?['properties']?['severity']"
+                        }
+                    ]
+                },
+                "runAfter": {},
+                "type": "InitializeVariable"
+            },
+            "Initialize_variable_Tactics": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "Tactics",
+                            "type": "string",
+                            "value": "@{join(triggerBody()?['object']?['properties']?['additionalData']?['tactics'], ',')}"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "Initialize_severity": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            },
+            "Initialize_variable_Wiki_URL": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "Wiki URL",
+                            "type": "string"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "Initialize_variable_techniques": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            },
+            "Initialize_variable_techniques": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "Techniques",
+                            "type": "string",
+                            "value": "@{join(triggerBody()?['object']?['properties']?['additionalData']?['techniques'], ',')}"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "Initialize_variable_Tactics": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            },
+            "Set_Severity_for_24-7_or_8-5": {
+                "actions": {
+                    "24-7_or_8-5": {
+                        "actions": {
+                            "Set_severity_for_Direct_Support_24-7": {
+                                "cases": {
+                                    "A_-_Critical_24-7": {
+                                        "actions": {
+                                            "Severity_A_-_24-7": {
+                                                "inputs": {
+                                                    "name": "Severity",
+                                                    "value": "280"
+                                                },
+                                                "type": "SetVariable"
+                                            }
+                                        },
+                                        "case": "High"
+                                    },
+                                    "B_-_Moderate_24-7": {
+                                        "actions": {
+                                            "Severitiy_B_-_Moderate_24-7": {
+                                                "inputs": {
+                                                    "name": "Severity",
+                                                    "value": "281"
+                                                },
+                                                "type": "SetVariable"
+                                            }
+                                        },
+                                        "case": "Medium"
+                                    },
+                                    "C_-_Minor_24-7": {
+                                        "actions": {
+                                            "Severity_C_-_Minor_24-7": {
+                                                "inputs": {
+                                                    "name": "Severity",
+                                                    "value": "282"
+                                                },
+                                                "type": "SetVariable"
+                                            }
+                                        },
+                                        "case": "Low"
+                                    },
+                                    "D_-_Informational_24-7": {
+                                        "actions": {
+                                            "Severity_D_-_Informational_24-7": {
+                                                "inputs": {
+                                                    "name": "Severity",
+                                                    "value": "284"
+                                                },
+                                                "type": "SetVariable"
+                                            }
+                                        },
+                                        "case": "Informational"
+                                    }
+                                },
+                                "default": {
+                                    "actions": {
+                                        "Set_variable_default_24-7": {
+                                            "inputs": {
+                                                "name": "Severity",
+                                                "value": "282"
+                                            },
+                                            "type": "SetVariable"
+                                        }
+                                    }
+                                },
+                                "expression": "@variables('Severity')",
+                                "type": "Switch"
+                            }
+                        },
+                        "else": {
+                            "actions": {
+                                "Set_severity_for_Direct_Support_8-5": {
+                                    "cases": {
+                                        "A_-_Critical_8-5": {
+                                            "actions": {
+                                                "Severity_A_-_critical_8-5": {
+                                                    "inputs": {
+                                                        "name": "Severity",
+                                                        "value": "277"
+                                                    },
+                                                    "type": "SetVariable"
+                                                }
+                                            },
+                                            "case": "High"
+                                        },
+                                        "B_-_Moderate_8-5": {
+                                            "actions": {
+                                                "Severitiy_B_-_Moderate_8-5": {
+                                                    "inputs": {
+                                                        "name": "Severity",
+                                                        "value": "278"
+                                                    },
+                                                    "type": "SetVariable"
+                                                }
+                                            },
+                                            "case": "Medium"
+                                        },
+                                        "C_-_Minor_8-5": {
+                                            "actions": {
+                                                "Severity_C_-_Minor_8-5": {
+                                                    "inputs": {
+                                                        "name": "Severity",
+                                                        "value": "279"
+                                                    },
+                                                    "type": "SetVariable"
+                                                }
+                                            },
+                                            "case": "Low"
+                                        },
+                                        "D_-_Informational_8-5": {
+                                            "actions": {
+                                                "Severity_D_-_Informational_8-5": {
+                                                    "inputs": {
+                                                        "name": "Severity",
+                                                        "value": "283"
+                                                    },
+                                                    "type": "SetVariable"
+                                                }
+                                            },
+                                            "case": "Informational"
+                                        }
+                                    },
+                                    "default": {
+                                        "actions": {
+                                            "Set_default_8-5": {
+                                                "inputs": {
+                                                    "name": "Severity",
+                                                    "value": "279"
+                                                },
+                                                "type": "SetVariable"
+                                            }
+                                        }
+                                    },
+                                    "expression": "@variables('Severity')",
+                                    "type": "Switch"
+                                }
+                            }
+                        },
+                        "expression": {
+                            "and": [
+                                {
+                                    "equals": [
+                                        "@items('Set_Severity_for_24-7_or_8-5')?['Support']?['Value']",
+                                        "Direct Support 24/7"
+                                    ]
+                                }
+                            ]
+                        },
+                        "type": "If"
+                    }
+                },
+                "foreach": "@body('Get_items')?['value']",
+                "runAfter": {
+                    "Get_items": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Foreach"
+            }
+        },
+        "contentVersion": "1.0.0.0",
+        "outputs": {},
+        "parameters": {
+            "$connections": {
+                "defaultValue": {},
+                "type": "Object"
+            }
+        },
+        "triggers": {
+            "Microsoft_Sentinel_incident": {
+                "inputs": {
+                    "body": {
+                        "callback_url": "@{listCallbackUrl()}"
+                    },
+                    "host": {
+                        "connection": {
+                            "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                        }
+                    },
+                    "path": "/incident-creation"
+                },
+                "type": "ApiConnectionWebhook"
+            }
+        }
+    },
+    "parameters": {
+        "$connections": {
+            "value": {
+                "azuresentinel": {
+                    "connectionId": "/subscriptions/738d02b8-c83d-4d21-9a99-60243a903b89/resourceGroups/rg-prod-mdr-suite/providers/Microsoft.Web/connections/azuresentinel",
+                    "connectionName": "azuresentinel",
+                    "connectionProperties": {
+                        "authentication": {
+                            "identity": "/subscriptions/738d02b8-c83d-4d21-9a99-60243a903b89/resourceGroups/rg-prod-mdr-suite/providers/Microsoft.ManagedIdentity/userAssignedIdentities/mi-prod-mdr-suite",
+                            "type": "ManagedServiceIdentity"
+                        }
+                    },
+                    "id": "/subscriptions/738d02b8-c83d-4d21-9a99-60243a903b89/providers/Microsoft.Web/locations/northeurope/managedApis/azuresentinel"
+                },
+                "azuresentinel-2": {
+                    "connectionId": "/subscriptions/738d02b8-c83d-4d21-9a99-60243a903b89/resourceGroups/rg-prod-mdr-suite/providers/Microsoft.Web/connections/azuresentinel-2",
+                    "connectionName": "azuresentinel-2",
+                    "connectionProperties": {
+                        "authentication": {
+                            "identity": "/subscriptions/738d02b8-c83d-4d21-9a99-60243a903b89/resourceGroups/rg-prod-mdr-suite/providers/Microsoft.ManagedIdentity/userAssignedIdentities/mi-prod-mdr-suite",
+                            "type": "ManagedServiceIdentity"
+                        }
+                    },
+                    "id": "/subscriptions/738d02b8-c83d-4d21-9a99-60243a903b89/providers/Microsoft.Web/locations/northeurope/managedApis/azuresentinel"
+                },
+                "keyvault": {
+                    "connectionId": "/subscriptions/738d02b8-c83d-4d21-9a99-60243a903b89/resourceGroups/rg-prod-mdr-suite/providers/Microsoft.Web/connections/keyvault",
+                    "connectionName": "keyvault",
+                    "connectionProperties": {
+                        "authentication": {
+                            "identity": "/subscriptions/738d02b8-c83d-4d21-9a99-60243a903b89/resourceGroups/rg-prod-mdr-suite/providers/Microsoft.ManagedIdentity/userAssignedIdentities/mi-prod-mdr-suite",
+                            "type": "ManagedServiceIdentity"
+                        }
+                    },
+                    "id": "/subscriptions/738d02b8-c83d-4d21-9a99-60243a903b89/providers/Microsoft.Web/locations/northeurope/managedApis/keyvault"
+                },
+                "office365": {
+                    "connectionId": "/subscriptions/738d02b8-c83d-4d21-9a99-60243a903b89/resourceGroups/rg-prod-mdr-suite/providers/Microsoft.Web/connections/office365",
+                    "connectionName": "office365",
+                    "id": "/subscriptions/738d02b8-c83d-4d21-9a99-60243a903b89/providers/Microsoft.Web/locations/northeurope/managedApis/office365"
+                },
+                "sharepointonline": {
+                    "connectionId": "/subscriptions/738d02b8-c83d-4d21-9a99-60243a903b89/resourceGroups/rg-prod-mdr-suite/providers/Microsoft.Web/connections/sharepointonline",
+                    "connectionName": "sharepointonline",
+                    "id": "/subscriptions/738d02b8-c83d-4d21-9a99-60243a903b89/providers/Microsoft.Web/locations/northeurope/managedApis/sharepointonline"
+                }
+            }
+        }
+    }
+}

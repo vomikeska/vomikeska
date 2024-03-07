@@ -1,0 +1,259 @@
+{
+    "definition": {
+        "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+        "actions": {
+            "Condition_status_is_not_Closed": {
+                "actions": {
+                    "Condition_note_is_not_empty": {
+                        "actions": {
+                            "Add_status_and_comment": {
+                                "inputs": {
+                                    "body": {
+                                        "incidentArmId": "@triggerBody()?['SentinelId']",
+                                        "message": "<p>Vivantio Status: @{triggerBody()?['status']}<br>\nVivantio Note: @{triggerBody()?['Notes']}</p>"
+                                    },
+                                    "host": {
+                                        "connection": {
+                                            "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                                        }
+                                    },
+                                    "method": "post",
+                                    "path": "/Incidents/Comment"
+                                },
+                                "type": "ApiConnection"
+                            }
+                        },
+                        "else": {
+                            "actions": {
+                                "Add_Vivantio_status_info": {
+                                    "inputs": {
+                                        "body": {
+                                            "incidentArmId": "@triggerBody()?['SentinelId']",
+                                            "message": "<p>Vivantio Status: @{triggerBody()?['status']}</p>"
+                                        },
+                                        "host": {
+                                            "connection": {
+                                                "name": "@parameters('$connections')['azuresentinel-2']['connectionId']"
+                                            }
+                                        },
+                                        "method": "post",
+                                        "path": "/Incidents/Comment"
+                                    },
+                                    "type": "ApiConnection"
+                                }
+                            }
+                        },
+                        "expression": {
+                            "and": [
+                                {
+                                    "not": {
+                                        "equals": [
+                                            "@triggerBody()?['Notes']",
+                                            ""
+                                        ]
+                                    }
+                                }
+                            ]
+                        },
+                        "runAfter": {
+                            "Update_severity_in_Sentinel": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "If"
+                    },
+                    "Update_severity_in_Sentinel": {
+                        "inputs": {
+                            "body": {
+                                "incidentArmId": "@triggerBody()?['SentinelId']",
+                                "severity": "@triggerBody()?['priorityname']",
+                                "status": "Active"
+                            },
+                            "host": {
+                                "connection": {
+                                    "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                                }
+                            },
+                            "method": "put",
+                            "path": "/Incidents"
+                        },
+                        "type": "ApiConnection"
+                    }
+                },
+                "else": {
+                    "actions": {
+                        "Close_Incident_in_Sentinel": {
+                            "inputs": {
+                                "body": {
+                                    "classification": {
+                                        "ClassificationAndReason": "@triggerBody()?['Classification']",
+                                        "ClassificationReasonText": "@triggerBody()?['solution']"
+                                    },
+                                    "incidentArmId": "@triggerBody()?['SentinelId']",
+                                    "severity": "@triggerBody()?['priorityname']",
+                                    "status": "Closed"
+                                },
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                                    }
+                                },
+                                "method": "put",
+                                "path": "/Incidents"
+                            },
+                            "type": "ApiConnection"
+                        }
+                    }
+                },
+                "expression": {
+                    "and": [
+                        {
+                            "not": {
+                                "equals": [
+                                    "@triggerBody()?['status']",
+                                    "Closed"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "runAfter": {},
+                "type": "If"
+            }
+        },
+        "contentVersion": "1.0.0.0",
+        "outputs": {},
+        "parameters": {
+            "$connections": {
+                "defaultValue": {},
+                "type": "Object"
+            }
+        },
+        "triggers": {
+            "manual": {
+                "inputs": {
+                    "schema": {
+                        "properties": {
+                            "schema": {
+                                "properties": {
+                                    "properties": {
+                                        "properties": {
+                                            "Classfification": {
+                                                "properties": {
+                                                    "type": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            },
+                                            "Notes": {
+                                                "properties": {
+                                                    "type": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            },
+                                            "SentinelId": {
+                                                "properties": {
+                                                    "type": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            },
+                                            "VivantioTicketID": {
+                                                "properties": {
+                                                    "type": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            },
+                                            "actionedby": {
+                                                "properties": {
+                                                    "type": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            },
+                                            "priorityname": {
+                                                "properties": {
+                                                    "type": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            },
+                                            "solution": {
+                                                "properties": {
+                                                    "type": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            },
+                                            "status": {
+                                                "properties": {
+                                                    "type": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            },
+                                            "transactiontype": {
+                                                "properties": {
+                                                    "type": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        },
+                                        "type": "object"
+                                    },
+                                    "type": {
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        },
+                        "type": "object"
+                    }
+                },
+                "kind": "Http",
+                "type": "Request"
+            }
+        }
+    },
+    "parameters": {
+        "$connections": {
+            "value": {
+                "azuresentinel": {
+                    "connectionId": "/subscriptions/738d02b8-c83d-4d21-9a99-60243a903b89/resourceGroups/rg-prod-mdr-suite/providers/Microsoft.Web/connections/azuresentinel",
+                    "connectionName": "azuresentinel",
+                    "connectionProperties": {
+                        "authentication": {
+                            "identity": "/subscriptions/738d02b8-c83d-4d21-9a99-60243a903b89/resourceGroups/rg-prod-mdr-suite/providers/Microsoft.ManagedIdentity/userAssignedIdentities/mi-prod-mdr-suite",
+                            "type": "ManagedServiceIdentity"
+                        }
+                    },
+                    "id": "/subscriptions/738d02b8-c83d-4d21-9a99-60243a903b89/providers/Microsoft.Web/locations/northeurope/managedApis/azuresentinel"
+                },
+                "azuresentinel-2": {
+                    "connectionId": "/subscriptions/738d02b8-c83d-4d21-9a99-60243a903b89/resourceGroups/rg-prod-mdr-suite/providers/Microsoft.Web/connections/azuresentinel-2",
+                    "connectionName": "azuresentinel-2",
+                    "connectionProperties": {
+                        "authentication": {
+                            "identity": "/subscriptions/738d02b8-c83d-4d21-9a99-60243a903b89/resourceGroups/rg-prod-mdr-suite/providers/Microsoft.ManagedIdentity/userAssignedIdentities/mi-prod-mdr-suite",
+                            "type": "ManagedServiceIdentity"
+                        }
+                    },
+                    "id": "/subscriptions/738d02b8-c83d-4d21-9a99-60243a903b89/providers/Microsoft.Web/locations/northeurope/managedApis/azuresentinel"
+                }
+            }
+        }
+    }
+}

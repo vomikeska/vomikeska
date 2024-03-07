@@ -1,0 +1,447 @@
+{
+    "definition": {
+        "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+        "actions": {
+            "For_each": {
+                "actions": {
+                    "Append_new_IP_to_IPs": {
+                        "inputs": {
+                            "name": "IPs",
+                            "value": {
+                                "@@odata.type": "#microsoft.graph.iPv4CidrRange",
+                                "cidrAddress": "@{variables('IP Address')}/32"
+                            }
+                        },
+                        "runAfter": {
+                            "Set_variable_IPs": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "AppendToArrayVariable"
+                    },
+                    "Compose": {
+                        "inputs": "@outputs('Update_named_location')",
+                        "runAfter": {
+                            "Update_named_location": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "Compose"
+                    },
+                    "Get_named_location": {
+                        "inputs": {
+                            "authentication": {
+                                "audience": "https://graph.microsoft.com",
+                                "authority": "https://login.microsoftonline.com",
+                                "clientId": "77f5c819-71c0-40fc-a864-f90e6830a141",
+                                "secret": "@{body('Get_secret')?['value']}",
+                                "tenant": "@{items('For_each')?['TenantID']}",
+                                "type": "ActiveDirectoryOAuth"
+                            },
+                            "method": "GET",
+                            "uri": "https://graph.microsoft.com/beta/identity/conditionalAccess/namedLocations/@{items('For_each')?['LocationGroupID']}"
+                        },
+                        "type": "Http"
+                    },
+                    "Parse_JSON": {
+                        "inputs": {
+                            "content": "@body('Get_named_location')",
+                            "schema": {
+                                "properties": {
+                                    "@@odata.context": {
+                                        "type": "string"
+                                    },
+                                    "@@odata.type": {
+                                        "type": "string"
+                                    },
+                                    "createdDateTime": {
+                                        "type": "string"
+                                    },
+                                    "displayName": {
+                                        "type": "string"
+                                    },
+                                    "id": {
+                                        "type": "string"
+                                    },
+                                    "ipRanges": {
+                                        "items": {
+                                            "properties": {
+                                                "@@odata.type": {
+                                                    "type": "string"
+                                                },
+                                                "cidrAddress": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "@@odata.type",
+                                                "cidrAddress"
+                                            ],
+                                            "type": "object"
+                                        },
+                                        "type": "array"
+                                    },
+                                    "isTrusted": {
+                                        "type": "boolean"
+                                    },
+                                    "modifiedDateTime": {
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        },
+                        "runAfter": {
+                            "Get_named_location": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "ParseJson"
+                    },
+                    "Set_variable_IPs": {
+                        "inputs": {
+                            "name": "IPs",
+                            "value": "@body('Parse_JSON')?['ipRanges']"
+                        },
+                        "runAfter": {
+                            "Parse_JSON": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "SetVariable"
+                    },
+                    "Set_variable_flow_failed": {
+                        "actions": {
+                            "Set_variable": {
+                                "inputs": {
+                                    "name": "Flow failed",
+                                    "value": true
+                                },
+                                "type": "SetVariable"
+                            }
+                        },
+                        "else": {
+                            "actions": {}
+                        },
+                        "expression": {
+                            "and": [
+                                {
+                                    "not": {
+                                        "equals": [
+                                            "@outputs('Update_named_location')?['statusCode']",
+                                            204
+                                        ]
+                                    }
+                                }
+                            ]
+                        },
+                        "runAfter": {
+                            "Compose": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "If"
+                    },
+                    "Update_named_location": {
+                        "inputs": {
+                            "authentication": {
+                                "audience": "https://graph.microsoft.com",
+                                "authority": "https://login.microsoftonline.com",
+                                "clientId": "77f5c819-71c0-40fc-a864-f90e6830a141",
+                                "secret": "@{body('Get_secret')?['value']}",
+                                "tenant": "@{items('For_each')?['TenantID']}",
+                                "type": "ActiveDirectoryOAuth"
+                            },
+                            "body": {
+                                "@@odata.type": "#microsoft.graph.ipNamedLocation",
+                                "ipRanges": "@variables('IPs')"
+                            },
+                            "headers": {
+                                "Content-Type": "application/json"
+                            },
+                            "method": "PATCH",
+                            "uri": "https://graph.microsoft.com/beta/identity/conditionalAccess/namedLocations/@{items('For_each')?['LocationGroupID']}"
+                        },
+                        "runAfter": {
+                            "Append_new_IP_to_IPs": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "Http"
+                    }
+                },
+                "foreach": "@body('Get_items')?['value']",
+                "runAfter": {
+                    "Get_secret": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Foreach"
+            },
+            "For_each_1": {
+                "actions": {
+                    "Compose_IP_address": {
+                        "inputs": "@first(body('Filter_array_Ip'))['properties']?['address']",
+                        "runAfter": {
+                            "Filter_array_IP": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "Compose"
+                    },
+                    "Filter_array_IP": {
+                        "inputs": {
+                            "from": "@body('Parse_JSON_Sentinel_Entitties')",
+                            "where": "@equals(item()['kind'],'Ip')"
+                        },
+                        "type": "Query"
+                    },
+                    "Set_variable_IP_Address": {
+                        "inputs": {
+                            "name": "IP Address",
+                            "value": "@{outputs('Compose_IP_address')}"
+                        },
+                        "runAfter": {
+                            "Compose_IP_address": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "SetVariable"
+                    }
+                },
+                "foreach": "@outputs('Parse_JSON_Sentinel_Entitties')['body']",
+                "runAfter": {
+                    "Parse_JSON_Sentinel_Entitties": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Foreach"
+            },
+            "Get_items": {
+                "inputs": {
+                    "host": {
+                        "connection": {
+                            "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                        }
+                    },
+                    "method": "get",
+                    "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://system4u.sharepoint.com/sites/MDR'))}/tables/@{encodeURIComponent(encodeURIComponent('caac55af-44a0-473c-a10c-9528741e280b'))}/items",
+                    "queries": {
+                        "$filter": "WorkspaceID eq '@{triggerBody()?['workspaceId']}'"
+                    }
+                },
+                "runAfter": {
+                    "For_each_1": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "ApiConnection"
+            },
+            "Get_secret": {
+                "inputs": {
+                    "host": {
+                        "connection": {
+                            "name": "@parameters('$connections')['keyvault-2']['connectionId']"
+                        }
+                    },
+                    "method": "get",
+                    "path": "/secrets/@{encodeURIComponent('mdr-suite-app-secret')}/value"
+                },
+                "runAfter": {
+                    "Get_items": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "ApiConnection"
+            },
+            "Initialize_IPs_Array": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "IPs",
+                            "type": "array"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "Initialize_variable": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            },
+            "Initialize_variable": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "Flow failed",
+                            "type": "boolean"
+                        }
+                    ]
+                },
+                "runAfter": {},
+                "type": "InitializeVariable"
+            },
+            "Initialize_variable_IP_Address": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "IP Address",
+                            "type": "string"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "Initialize_IPs_Array": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            },
+            "Parse_JSON_Sentinel_Entitties": {
+                "inputs": {
+                    "content": "@triggerBody()?['object']?['properties']?['relatedEntities']",
+                    "schema": {
+                        "items": {
+                            "properties": {
+                                "id": {
+                                    "type": "string"
+                                },
+                                "kind": {
+                                    "type": "string"
+                                },
+                                "name": {
+                                    "type": "string"
+                                },
+                                "properties": {
+                                    "properties": {
+                                        "appId": {
+                                            "type": "integer"
+                                        },
+                                        "appName": {
+                                            "type": "string"
+                                        },
+                                        "friendlyName": {
+                                            "type": "string"
+                                        },
+                                        "instanceName": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                },
+                                "type": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "id",
+                                "name",
+                                "type",
+                                "kind",
+                                "properties"
+                            ],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    }
+                },
+                "runAfter": {
+                    "Initialize_variable_IP_Address": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "ParseJson"
+            },
+            "Status_code_is_not_204": {
+                "actions": {
+                    "Terminate": {
+                        "inputs": {
+                            "runError": {
+                                "code": "Status code is not 204"
+                            },
+                            "runStatus": "Failed"
+                        },
+                        "type": "Terminate"
+                    }
+                },
+                "else": {
+                    "actions": {}
+                },
+                "expression": {
+                    "and": [
+                        {
+                            "equals": [
+                                "@variables('Flow failed')",
+                                true
+                            ]
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "For_each": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "If"
+            }
+        },
+        "contentVersion": "1.0.0.0",
+        "outputs": {},
+        "parameters": {
+            "$connections": {
+                "defaultValue": {},
+                "type": "Object"
+            }
+        },
+        "triggers": {
+            "Microsoft_Sentinel_incident": {
+                "inputs": {
+                    "body": {
+                        "callback_url": "@{listCallbackUrl()}"
+                    },
+                    "host": {
+                        "connection": {
+                            "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                        }
+                    },
+                    "path": "/incident-creation"
+                },
+                "type": "ApiConnectionWebhook"
+            }
+        }
+    },
+    "parameters": {
+        "$connections": {
+            "value": {
+                "azuresentinel": {
+                    "connectionId": "/subscriptions/738d02b8-c83d-4d21-9a99-60243a903b89/resourceGroups/rg-prod-mdr-suite/providers/Microsoft.Web/connections/azuresentinel",
+                    "connectionName": "azuresentinel",
+                    "connectionProperties": {
+                        "authentication": {
+                            "identity": "/subscriptions/738d02b8-c83d-4d21-9a99-60243a903b89/resourceGroups/rg-prod-mdr-suite/providers/Microsoft.ManagedIdentity/userAssignedIdentities/mi-prod-mdr-suite",
+                            "type": "ManagedServiceIdentity"
+                        }
+                    },
+                    "id": "/subscriptions/738d02b8-c83d-4d21-9a99-60243a903b89/providers/Microsoft.Web/locations/northeurope/managedApis/azuresentinel"
+                },
+                "keyvault-2": {
+                    "connectionId": "/subscriptions/738d02b8-c83d-4d21-9a99-60243a903b89/resourceGroups/rg-prod-mdr-suite/providers/Microsoft.Web/connections/keyvault",
+                    "connectionName": "keyvault",
+                    "connectionProperties": {
+                        "authentication": {
+                            "identity": "/subscriptions/738d02b8-c83d-4d21-9a99-60243a903b89/resourceGroups/rg-prod-mdr-suite/providers/Microsoft.ManagedIdentity/userAssignedIdentities/mi-prod-mdr-suite",
+                            "type": "ManagedServiceIdentity"
+                        }
+                    },
+                    "id": "/subscriptions/738d02b8-c83d-4d21-9a99-60243a903b89/providers/Microsoft.Web/locations/northeurope/managedApis/keyvault"
+                },
+                "sharepointonline": {
+                    "connectionId": "/subscriptions/738d02b8-c83d-4d21-9a99-60243a903b89/resourceGroups/rg-prod-mdr-suite/providers/Microsoft.Web/connections/sharepointonline",
+                    "connectionName": "sharepointonline",
+                    "id": "/subscriptions/738d02b8-c83d-4d21-9a99-60243a903b89/providers/Microsoft.Web/locations/northeurope/managedApis/sharepointonline"
+                }
+            }
+        }
+    }
+}
